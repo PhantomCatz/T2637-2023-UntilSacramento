@@ -20,8 +20,10 @@ public class CatzAutonomousPaths
     *  Field Relative angles when robot is TBD - Finish Comment  
     *-----------------------------------------------------------------------------------*/
     private final double FWD_OR_BWD = 0.0;
-    public static double RIGHT      = -90.0; 
-    public static double LEFT       =  90.0;
+    private final double RIGHT      =   -90.0; 
+    private final double LEFT       =   90.0;
+    private final double BIAS_OFFSET = -2;
+    
 
     private final double MIN_DIST        =  20.0;   //TBD - This doesn't make sense, if we want to do this, then define as waypoint to waypoint
     private final double MAX_DIST        = 100.0;
@@ -89,7 +91,6 @@ public class CatzAutonomousPaths
         chosenPath.setDefaultOption("Left Score 1",           LEFT_SCORE_1);   
         chosenPath.addOption       ("Left Score 2",           LEFT_SCORE_2);
         chosenPath.addOption       ("Left Score 1 Balance",   LEFT_SCORE_1_BALANCE);
-        chosenPath.addOption       ("Left Score 2 Balance",   LEFT_SCORE_2_BALANCE);
 
         chosenPath.addOption       ("Center Score 1",         CENTER_SCORE_1);
         chosenPath.addOption       ("Center Score 1 Balance", CENTER_SCORE_1_BALANCE);
@@ -97,7 +98,8 @@ public class CatzAutonomousPaths
         chosenPath.addOption       ("Right Score 1",          RIGHT_SCORE_1);
         chosenPath.addOption       ("Right Score 2",          RIGHT_SCORE_2);
         chosenPath.addOption       ("Right Score 1 Balance",  RIGHT_SCORE_1_BALANCE);
-        chosenPath.addOption       ("Right Score 2 Balance",  RIGHT_SCORE_2_BALANCE);
+
+        chosenPath.addOption       ("TEST PATH",  TEST);
 
         SmartDashboard.putData     ("Auton Path", chosenPath);
     }
@@ -110,16 +112,13 @@ public class CatzAutonomousPaths
  
         switch (pathID)
         {
-            case LEFT_SCORE_1: 
+            case LEFT_SCORE_1: SideScore1();
             break;
 
             case LEFT_SCORE_2: LeftScore2();
             break;
 
-            case LEFT_SCORE_1_BALANCE: 
-            break;
-
-            case LEFT_SCORE_2_BALANCE: 
+            case LEFT_SCORE_1_BALANCE: LeftScore1Balance();
             break;
 
             case CENTER_SCORE_1: CenterScore1();
@@ -128,24 +127,43 @@ public class CatzAutonomousPaths
             case CENTER_SCORE_1_BALANCE: CenterScore1Balance();
             break;
 
-            case RIGHT_SCORE_1: 
+            case RIGHT_SCORE_1: SideScore1();
             break;
 
             case RIGHT_SCORE_2: RightScore2();
             break;
 
-            case RIGHT_SCORE_1_BALANCE: 
+            case RIGHT_SCORE_1_BALANCE: RightScore1Balance();
             break;
 
-            case RIGHT_SCORE_2_BALANCE: 
+            case TEST: testPath();
             break;
         }
 
     }
 
+    public void testPath()
+    {
+        scoreCubeIndexer();
+        Robot.auton.DriveStraight(25, RIGHT, 5.0);
+        
+        
 
+    }
 
     
+
+    public void SideScore1()
+    {
+        double direction;
+
+        scoreCubeIndexer();
+
+        Robot.auton.DriveStraight(100, LEFT, 2.0);     //From Grid to area to do 180 deg turn
+        Timer.delay(2.0);
+        Robot.auton.DriveStraight(100, RIGHT, 2.0);     //From Grid to area to do 180 deg turn
+
+    }
 
     public void sideScore2()
     {
@@ -156,10 +174,14 @@ public class CatzAutonomousPaths
 
         Robot.auton.TurnInPlace(180, 2);
 
-        Robot.auton.DriveStraight(150, FWD_OR_BWD, 5.0);
         deployAndRunIntake();
-        Robot.auton.DriveStraight( 50, FWD_OR_BWD, 2.0);
+        Timer.delay(0.75);
+        
+        Robot.auton.DriveStraight(200, FWD_OR_BWD, 5.0);
+        Timer.delay(0.50);
         stopAndStowIntake();
+        Timer.delay(0.75);
+
 
         Robot.auton.TurnInPlace(180, 2);
 
@@ -214,7 +236,7 @@ public class CatzAutonomousPaths
 
 
 
-    public void LeftScore2Balance()
+    public void LeftScore1Balance()
     {
         double direction;
 
@@ -225,6 +247,41 @@ public class CatzAutonomousPaths
         else
         {
             direction = LEFT;
+        }
+
+        scoreCubeIndexer();
+
+        Robot.auton.DriveStraight(180, FWD_OR_BWD+BIAS_OFFSET, 7.0);     //From Grid to area to do 180 deg turn
+
+        Robot.auton.TurnInPlace(180, 2);
+
+        deployAndRunIntake();
+        Timer.delay(0.75);
+        Robot.auton.DriveStraight(50, FWD_OR_BWD+BIAS_OFFSET, 2.0);
+        Timer.delay(0.5);
+        stopAndStowIntake();
+        Timer.delay(0.75);
+        Robot.auton.TurnInPlace(180, 2);
+        Robot.auton.DriveStraight(-70, FWD_OR_BWD+BIAS_OFFSET, 5.0);
+        Robot.auton.DriveStraight(60, direction, 2.0);
+        Robot.auton.DriveStraight(-80, FWD_OR_BWD+BIAS_OFFSET, 2.0);
+        Balance();
+        scoreCubeIndexer();
+
+    }
+
+
+    public void RightScore1Balance()
+    {
+        double direction;
+
+        if(chosenAllianceColor.getSelected() == Robot.constants.RED_ALLIANCE)
+        {
+            direction = LEFT;
+        }
+        else
+        {
+            direction = RIGHT;
         }
 
         scoreCubeIndexer();
@@ -249,7 +306,7 @@ public class CatzAutonomousPaths
     public void CenterScore1Balance() 
     {
         scoreCubeIndexer();
-        Robot.auton.DriveStraight(100, FWD_OR_BWD, 4.0);
+        Robot.auton.DriveStraight(100, FWD_OR_BWD-7, 4.0);
         Balance();
     }
 

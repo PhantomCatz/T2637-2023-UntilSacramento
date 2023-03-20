@@ -10,7 +10,7 @@ public class CatzAutonomous
     private final double SDS_L1_GEAR_RATIO = 8.14;       //SDS mk4i L1 ratio
     private final double SDS_L2_GEAR_RATIO = 6.75;       //SDS mk4i L2 ratio
 
-    private final double DRV_S_GEAR_RATIO = SDS_L1_GEAR_RATIO; //set to which modules are being used
+    private final double DRV_S_GEAR_RATIO = SDS_L2_GEAR_RATIO; //set to which modules are being used
 
     private final double DRV_S_THREAD_PERIOD = 0.02;
 
@@ -22,15 +22,15 @@ public class CatzAutonomous
 
     //drive straight variables
     //drive power
-    private final double DRV_S_KP = 0.02; //TBD
+    private final double DRV_S_KP = 0.02; //TBD // decel distance in inches = DRV_S_MAX_POWER/DRV_S_KP = 35 inch
 
     private final double DRV_S_THRESHOLD_INCH = 0.5;
     private final double DRV_S_MIN_POWER      = 0.1;
-    private final double DRV_S_MAX_POWER      = 1.0;
+    private final double DRV_S_MAX_POWER      = 0.7;
 
     //turn power
-    private final double DRV_S_ERROR_GAIN    = 0.05;
-    private final double DRV_S_RATE_GAIN     = 0.001;
+    private final double DRV_S_ERROR_GAIN    = 0.032;
+    private final double DRV_S_RATE_GAIN     = 0.003;
 
     //turn in place variables
     private final static double PID_TURN_THRESHOLD   = 1.25;
@@ -106,6 +106,7 @@ public class CatzAutonomous
         double distanceRemainInch    = 0.0;
         double distanceRemainAbsInch = 0.0;
 
+        double drvPowerDirection = 0.0;
         double drvPower      = 0.0;
         double drvPowerKp    = 0.0;
         double drvPowerClamp = 0.0;
@@ -129,6 +130,7 @@ public class CatzAutonomous
         boolean done = false;
 
         Robot.drivetrain.LT_FRNT_MODULE.resetDrvDistance(); // Reset the encoder position so the calculation is easier.
+        Robot.drivetrain.LT_FRNT_MODULE.resetDrvDistance();
         deltaPositionCnts = 0.0;
 
         startingAngle         = Robot.navX.getAngle();
@@ -138,6 +140,7 @@ public class CatzAutonomous
         autonTimer.reset();
         autonTimer.start();
 
+        System.out.println("NEW DRVS");
         while(!done)
         {
             time = autonTimer.get();
@@ -178,21 +181,20 @@ public class CatzAutonomous
                 deltaPositionCnts   = Robot.drivetrain.LT_FRNT_MODULE.getDrvDistance();
                 distanceRemainInch    = distanceInch - (deltaPositionCnts * DRVTRAIN_ENC_COUNTS_TO_INCH);
                 distanceRemainAbsInch = Math.abs(distanceRemainInch);
+                drvPowerDirection     = Math.signum(distanceRemainInch);
 
                 if(distanceRemainAbsInch <= DRV_S_THRESHOLD_INCH)
                 {
-		    //The distance remaining is less than the stop threshold, then it means you have arrived at your destination. So you break out of the loop
-			
+                    System.out.println("Reached");
                     done = true;
                     Robot.drivetrain.translateTurn(directionDeg, 0.0, 0.0, Robot.drivetrain.getGyroAngle());
                 }
                 else
                 {
 		    //You are still not at the destination, so calculate new motor power
-			
-                    drvPowerKp    = (DRV_S_KP * distanceRemainAbsInch);                 //Multiply the distance remaining with KP to get the power.
-                    drvPowerClamp = Clamp(DRV_S_MIN_POWER, drvPowerKp, DRV_S_MAX_POWER);//Clamp the power between the min and max power.
-                    drvPower      = drvPowerClamp * Math.signum(distanceInch);          //Get the sign of inputted distance so you know whether to go forward or backward.
+                    drvPowerKp    = (DRV_S_KP * distanceRemainAbsInch);
+                    drvPowerClamp = Clamp(DRV_S_MIN_POWER, drvPowerKp, DRV_S_MAX_POWER);
+                    drvPower      = drvPowerClamp * Math.signum(drvPowerDirection);
 
 
 		    //Calculates how much to turn the wheels in order to go in a straight line, depending on its angle error.
@@ -200,17 +202,20 @@ public class CatzAutonomous
                     angleKdPower = DRV_S_RATE_GAIN  * angleErrorRate;
 
                     turnPower = Clamp(-1.0, angleKpPower + angleKdPower, 1.0);
+                    turnPower *= Math.signum(drvPowerDirection);
+                    
 
                     Robot.drivetrain.translateTurn(directionDeg, drvPower, turnPower, Robot.drivetrain.getGyroAngle());
-
+                    System.out.println("Direction deg" + directionDeg);
                     prevTime       = time;
                     prevAngleError = angleError;
+
+                    System.out.println("drv power: " + drvPower);
                 }
             }
-
             if(DataCollection.chosenDataID.getSelected() == DataCollection.LOG_ID_DRV_STRAIGHT)
             {
-                data = new CatzLog(time, deltaPositionCnts, distanceRemainInch,
+               data = new CatzLog(time, deltaPositionCnts, distanceRemainInch,
                                                             drvPowerKp,
                                                             drvPowerClamp, 
                                                             drvPower, 
@@ -221,14 +226,14 @@ public class CatzAutonomous
                                                             angleKdPower,
                                                             turnPower,
                                                             Robot.drivetrain.LT_FRNT_MODULE.getAngle(),
-                                                            0.0, 0.0, 0);  
+                                                            Robot.intake.getIntakeAngle(), 0.0, 0);  
                 Robot.dataCollection.logData.add(data);
             }
-
+         
             Timer.delay(DRV_S_THREAD_PERIOD);
         }
-	
 	//Broke out of the loop, meaning the robot as reached its destination, therefore setting the wheel power to zero.
+
         Robot.drivetrain.translateTurn(directionDeg, 0.0, 0.0, Robot.drivetrain.getGyroAngle());
     }
 
@@ -290,7 +295,7 @@ public class CatzAutonomous
                     }
 
                     //MIN POWER
-                    if (Math.abs(turnPower) < TURN_DRIVE_MIN_POWER)
+                  if (Math.abs(turnPower) < TURN_DRIVE_MIN_POWER)
                     {
                         turnPower = Math.signum(turnPower) * TURN_DRIVE_MIN_POWER;
                     }
@@ -309,6 +314,13 @@ public class CatzAutonomous
 
             Timer.delay(TURN_IN_PLACE_PERIOD);
         }
+    }
+
+    // Move and Rotate Simultaneously
+    public void TranslatelateRotation(double distanceInch, double degreesToTurn, double timeoutSeconds)
+    {
+        
+
     }
 
     public double Clamp(double min, double in, double max)
