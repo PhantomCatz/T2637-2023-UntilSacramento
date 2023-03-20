@@ -67,39 +67,6 @@ public class CatzAutonomous
     *  DriveStraight
     *
     *----------------------------------------------------------------------------------------*/
-	
-    /**
-     * Method to drive straight autonomously
-     * 
-     * 
-     * 
-     * @param distanceInch The distance to travel in inches (positive distance will drive forward field relative and negative distance will drive backward field relative)
-     * 
-     * @param directionDeg The direction which the robot will translate 
-     * 
-     * @param maxTime      The timeout time
-     */
-
-
-    /*      -----------------
-     *     |
-     *      -----------
-     *   →  |  ↓ (=)    _____
-     *     _|          |     |
-     *   →  |  ↑ (^)   |     |  
-     *     _|          |_____|
-     *   →  | --> (+)
-     *      | <-- (-)
-     *      -------------------------------     
-     * 
-     *   Key:
-     *      (^) == directed +90 degrees  
-     *      (=) == directed -90 degrees
-     *      (+) == directed positive distance
-     *      (-) == directed negative distance
-     * 
-     *       →  == driver's POV
-     */
 
     public void DriveStraight(double distanceInch, double directionDeg, double maxTime)
     {
@@ -129,7 +96,6 @@ public class CatzAutonomous
 
         boolean done = false;
 
-        Robot.drivetrain.LT_FRNT_MODULE.resetDrvDistance(); // Reset the encoder position so the calculation is easier.
         Robot.drivetrain.LT_FRNT_MODULE.resetDrvDistance();
         deltaPositionCnts = 0.0;
 
@@ -147,28 +113,15 @@ public class CatzAutonomous
 
             if(time > maxTime)
             {
-		//We've exceeded the timeout, so stop driving    
                 done = true;
                 Robot.drivetrain.translateTurn(directionDeg, 0.0, 0.0, Robot.drivetrain.getGyroAngle());
             }
             else
             {
-		//Did not exceed the timeout yet, so continue driving
                 currentAngle = Robot.navX.getAngle();
                 
                 angleError = startingAngle - currentAngle;
 
-		    
-		/*
-                 * On the first iteration, delta time will be a really small value, So when you are calculating the angle error rate, 
-                 * you will be dividing the angle error with a really really small number,
-                 * resulting in a really big angle error rate, which we do not want. 
-                 * 
-                 * 
-                 * On the first iteration, angle error shouldn't really occur, because it is only a fraction of a millisecond. 
-                 * By initializing previous time as -1, we can use that to determine if it's the first iteration. If it is the first iteration,
-                 * we will set the angle error rate to zero.
-                 */ 
                 if(prevTime == -1.0)
                 {
                     angleErrorRate = 0.0;
@@ -191,13 +144,11 @@ public class CatzAutonomous
                 }
                 else
                 {
-		    //You are still not at the destination, so calculate new motor power
                     drvPowerKp    = (DRV_S_KP * distanceRemainAbsInch);
                     drvPowerClamp = Clamp(DRV_S_MIN_POWER, drvPowerKp, DRV_S_MAX_POWER);
                     drvPower      = drvPowerClamp * Math.signum(drvPowerDirection);
 
 
-		    //Calculates how much to turn the wheels in order to go in a straight line, depending on its angle error.
                     angleKpPower = DRV_S_ERROR_GAIN * angleError;
                     angleKdPower = DRV_S_RATE_GAIN  * angleErrorRate;
 
@@ -232,7 +183,6 @@ public class CatzAutonomous
          
             Timer.delay(DRV_S_THREAD_PERIOD);
         }
-	//Broke out of the loop, meaning the robot as reached its destination, therefore setting the wheel power to zero.
 
         Robot.drivetrain.translateTurn(directionDeg, 0.0, 0.0, Robot.drivetrain.getGyroAngle());
     }
@@ -262,13 +212,12 @@ public class CatzAutonomous
             currentTime  = autonTimer.get();
             turnCurrentAngle = Robot.navX.getAngle();
     
-            // calculate angle error
+            // calculate error
             turnCurrentError      = turnTargetAngle - turnCurrentAngle;
             angleRemainingAbs = Math.abs(turnCurrentError);
 
             if (angleRemainingAbs < PID_TURN_THRESHOLD) 
             { 
-		//angle remaining is below the threshold, which means turn in place is done, so stop.
                 turnInPlaceDone = true;
                 Robot.drivetrain.rotateInPlace(0.0);
             }
